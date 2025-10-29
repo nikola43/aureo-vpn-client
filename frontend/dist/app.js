@@ -133,6 +133,21 @@ function initMap() {
         map.zoomControl.setPosition('bottomright');
 
         console.log('Map initialized successfully');
+
+        // Fix initial display issue - invalidate size after a short delay
+        setTimeout(() => {
+            if (map) {
+                map.invalidateSize();
+                console.log('Map size invalidated');
+            }
+        }, 250);
+
+        // Also invalidate on window resize
+        window.addEventListener('resize', () => {
+            if (map) {
+                map.invalidateSize();
+            }
+        });
     } catch (error) {
         console.error('Failed to initialize map:', error);
     }

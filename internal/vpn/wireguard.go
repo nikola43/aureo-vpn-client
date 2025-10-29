@@ -56,17 +56,17 @@ func (m *WireGuardManager) GenerateKeys() (privateKey, publicKey string, err err
 func (m *WireGuardManager) WriteConfig(privateKey, clientIP, serverPublicKey, serverEndpoint, dns string) error {
 	configPath := filepath.Join(m.configDir, "wg0.conf")
 
-	config := fmt.Sprintf(`[Interface]
-PrivateKey = %s
-Address = %s/32
-DNS = %s
-
-[Peer]
-PublicKey = %s
-Endpoint = %s
-AllowedIPs = 0.0.0.0/0
-PersistentKeepalive = 25
-`, privateKey, clientIP, dns, serverPublicKey, serverEndpoint)
+	// Build config without leading spaces/tabs
+	config := "[Interface]\n"
+	config += "PrivateKey = " + privateKey + "\n"
+	config += "Address = " + clientIP + "/32\n"
+	config += "DNS = " + dns + "\n"
+	config += "\n"
+	config += "[Peer]\n"
+	config += "PublicKey = " + serverPublicKey + "\n"
+	config += "Endpoint = " + serverEndpoint + "\n"
+	config += "AllowedIPs = 0.0.0.0/0\n"
+	config += "PersistentKeepalive = 25\n"
 
 	if err := os.WriteFile(configPath, []byte(config), 0600); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
@@ -123,11 +123,19 @@ func (m *WireGuardManager) IsConnected() bool {
 		return false
 	}
 
-	// Use non-interactive wg command without sudo (read-only check)
+	// Try wg without sudo first (some systems allow it)
 	cmd := exec.Command("wg", "show")
 	output, err := cmd.Output()
-	if err != nil {
-		return false
+
+	// If it fails, try with sudo but don't prompt (use cached credentials)
+	if err != nil || len(output) == 0 {
+		cmd = exec.Command("sudo", "-n", "wg", "show")
+		output, err = cmd.Output()
+		if err != nil {
+			// If sudo -n fails (no cached credentials), assume not connected
+			// rather than prompting for password
+			return false
+		}
 	}
 
 	// Check if there's any WireGuard interface active
