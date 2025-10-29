@@ -1,6 +1,7 @@
 // Global state
 let currentUser = null;
 let selectedNode = null;
+let connectedNode = null; // Track which node is currently connected
 let nodes = [];
 let sessionUpdateInterval = null;
 
@@ -171,21 +172,6 @@ function initDashboard() {
         showScreen('login-screen');
     });
 
-    // Refresh nodes button
-    document.getElementById('refresh-nodes-btn').addEventListener('click', loadNodes);
-
-    // Connect button
-    const connectBtn = document.getElementById('connect-btn');
-    if (connectBtn) {
-        console.log('Connect button found, adding event listener');
-        connectBtn.addEventListener('click', () => {
-            console.log('Connect button click event fired');
-            connectToVPN();
-        });
-    } else {
-        console.error('Connect button not found in DOM');
-    }
-
     // Disconnect button
     const disconnectBtn = document.getElementById('disconnect-btn');
     if (disconnectBtn) {
@@ -198,8 +184,26 @@ function initDashboard() {
         console.error('Disconnect button not found in DOM');
     }
 
-    // Filters
-    document.getElementById('protocol-filter').addEventListener('change', loadNodes);
+    // Change server button
+    const changeServerBtn = document.getElementById('change-server-btn');
+    if (changeServerBtn) {
+        changeServerBtn.addEventListener('click', () => {
+            // Just show the node selection UI - disconnect is optional
+            document.getElementById('countries-list').scrollIntoView({ behavior: 'smooth' });
+        });
+    }
+
+    // Sidebar tabs
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            // For now, only countries tab is functional
+            // TODO: Implement profiles tab
+        });
+    });
+
+    // Country filter
     document.getElementById('country-filter').addEventListener('input', filterNodes);
 }
 
@@ -209,37 +213,45 @@ async function checkConnectionStatus() {
         const isConnected = await window.go.main.App.IsConnected();
 
         if (isConnected) {
-            // Update UI to show connected state
-            const connectionStatus = document.getElementById('connection-status');
-            const connectionInfo = document.getElementById('connection-info');
+            // Update status display on map
+            const statusText = document.getElementById('connection-status-text');
+            const statusCircle = document.getElementById('status-circle');
 
-            connectionStatus.className = 'status-connected';
-            connectionStatus.querySelector('h3').textContent = 'Connected';
-            connectionInfo.textContent = 'Connected to VPN';
+            statusText.textContent = 'CONNECTED';
+            statusCircle.classList.add('connected');
 
-            // Show disconnect button
-            document.getElementById('connect-btn').style.display = 'none';
-            document.getElementById('disconnect-btn').style.display = 'block';
+            // Update connection card
+            const serverName = document.getElementById('server-name');
+            const serverDetails = document.getElementById('server-details');
+            const connectionStats = document.getElementById('connection-stats');
+            const disconnectBtn = document.getElementById('disconnect-btn');
+            const changeServerBtn = document.getElementById('change-server-btn');
+            const backBtn = document.getElementById('back-btn');
 
-            // Get VPN stats and update session panel
+            // Show disconnect and change server buttons
+            disconnectBtn.style.display = 'block';
+            changeServerBtn.style.display = 'block';
+            backBtn.style.display = 'none';
+            connectionStats.style.display = 'block';
+            serverDetails.style.display = 'block';
+
+            // Get VPN stats
             try {
                 const stats = await window.go.main.App.GetVPNStats();
                 if (stats && stats.connected) {
-                    const sessionPanel = document.getElementById('session-panel');
-                    if (sessionPanel) {
-                        document.getElementById('session-id').textContent = stats.node_id?.substring(0, 8) + '...' || 'N/A';
-                        document.getElementById('tunnel-ip').textContent = 'Connected';
-                        document.getElementById('session-protocol').textContent = 'WIREGUARD';
-                        document.getElementById('connected-time').textContent = 'Active';
+                    if (stats.node_name) {
+                        serverName.textContent = stats.node_name;
 
-                        if (stats.node_name) {
-                            connectionInfo.textContent = `Connected to ${stats.node_name}`;
+                        // Try to find and set the connected node
+                        if (nodes.length > 0) {
+                            connectedNode = nodes.find(n => n.name === stats.node_name);
+                            if (connectedNode) {
+                                renderNodes(nodes);
+                            }
                         }
-
-                        sessionPanel.style.display = 'block';
                     }
 
-                    // Start session updates
+                    // Start session updates for real-time stats
                     startSessionUpdates();
                 }
             } catch (err) {
@@ -247,16 +259,24 @@ async function checkConnectionStatus() {
             }
         } else {
             // Ensure disconnected UI
-            const connectionStatus = document.getElementById('connection-status');
-            const connectionInfo = document.getElementById('connection-info');
+            const statusText = document.getElementById('connection-status-text');
+            const statusCircle = document.getElementById('status-circle');
 
-            connectionStatus.className = 'status-disconnected';
-            connectionStatus.querySelector('h3').textContent = 'Disconnected';
-            connectionInfo.textContent = 'Not connected to VPN';
+            statusText.textContent = 'DISCONNECTED';
+            statusCircle.classList.remove('connected');
 
-            document.getElementById('connect-btn').style.display = 'block';
-            document.getElementById('disconnect-btn').style.display = 'none';
-            document.getElementById('session-panel').style.display = 'none';
+            // Reset connection card
+            const serverName = document.getElementById('server-name');
+            const serverDetails = document.getElementById('server-details');
+            const connectionStats = document.getElementById('connection-stats');
+            const disconnectBtn = document.getElementById('disconnect-btn');
+            const changeServerBtn = document.getElementById('change-server-btn');
+
+            serverName.textContent = 'Not Connected';
+            serverDetails.style.display = 'none';
+            connectionStats.style.display = 'none';
+            disconnectBtn.style.display = 'none';
+            changeServerBtn.style.display = 'none';
         }
     } catch (error) {
         console.error('Failed to check connection status:', error);
@@ -269,8 +289,9 @@ async function loadNodes() {
     nodesList.innerHTML = '<div class="loading">Loading nodes...</div>';
 
     try {
-        const protocol = document.getElementById('protocol-filter').value;
+        // No protocol filter in new UI, get all nodes
         const country = '';
+        const protocol = ''; // Empty string to get all protocols
 
         nodes = await window.go.main.App.GetNodes(country, protocol);
         renderNodes(nodes);
@@ -289,6 +310,65 @@ function filterNodes() {
     renderNodes(filteredNodes);
 }
 
+// Get country flag URL
+function getCountryFlagUrl(countryCode, countryName) {
+    // If we have a country code, use it
+    if (countryCode && countryCode.length === 2) {
+        return `https://flagcdn.com/w40/${countryCode.toLowerCase()}.png`;
+    }
+
+    // Try to map common country names to ISO codes
+    const countryMap = {
+        'united states': 'us',
+        'usa': 'us',
+        'united kingdom': 'gb',
+        'uk': 'gb',
+        'germany': 'de',
+        'france': 'fr',
+        'netherlands': 'nl',
+        'spain': 'es',
+        'italy': 'it',
+        'canada': 'ca',
+        'australia': 'au',
+        'japan': 'jp',
+        'singapore': 'sg',
+        'india': 'in',
+        'brazil': 'br',
+        'mexico': 'mx',
+        'sweden': 'se',
+        'norway': 'no',
+        'denmark': 'dk',
+        'finland': 'fi',
+        'poland': 'pl',
+        'switzerland': 'ch',
+        'austria': 'at',
+        'belgium': 'be',
+        'czech republic': 'cz',
+        'ireland': 'ie',
+        'portugal': 'pt',
+        'greece': 'gr',
+        'hong kong': 'hk',
+        'south korea': 'kr',
+        'taiwan': 'tw',
+        'israel': 'il',
+        'south africa': 'za',
+        'new zealand': 'nz',
+        'argentina': 'ar',
+        'chile': 'cl',
+        'colombia': 'co',
+        'turkey': 'tr',
+        'russia': 'ru',
+        'ukraine': 'ua',
+        'romania': 'ro',
+        'bulgaria': 'bg',
+        'hungary': 'hu'
+    };
+
+    const normalizedName = (countryName || '').toLowerCase().trim();
+    const code = countryMap[normalizedName] || 'us'; // Default to USA
+    return `https://flagcdn.com/w40/${code}.png`;
+}
+
 // Render nodes list
 function renderNodes(nodesToRender) {
     const nodesList = document.getElementById('nodes-list');
@@ -300,30 +380,22 @@ function renderNodes(nodesToRender) {
 
     nodesList.innerHTML = nodesToRender.map(node => {
         const isSelected = selectedNode && selectedNode.id === node.id;
+        const isConnected = connectedNode && connectedNode.id === node.id;
         const loadPercentage = Math.round(node.load_score);
-        const protocols = [];
-        if (node.supports_wireguard) protocols.push('WireGuard');
-        if (node.supports_openvpn) protocols.push('OpenVPN');
+        const flagUrl = getCountryFlagUrl(node.country_code, node.country);
 
         return `
-            <div class="node-item ${isSelected ? 'selected' : ''}" data-node-id="${node.id}">
-                <div class="node-info">
-                    <div class="node-name">${node.name}</div>
-                    <div class="node-location">${node.city}, ${node.country} (${protocols.join(', ')})</div>
+            <div class="node-item ${isSelected ? 'selected' : ''} ${isConnected ? 'connected' : ''}" data-node-id="${node.id}">
+                <div class="node-flag-wrapper">
+                    <img src="${flagUrl}" alt="${node.country}" class="node-flag" onerror="this.src='https://flagcdn.com/w40/us.png'">
+                    ${isConnected ? '<div class="connected-dot"></div>' : ''}
                 </div>
-                <div class="node-stats">
-                    <div class="node-stat">
-                        <span class="label">Load</span>
-                        <span class="value">${loadPercentage}%</span>
-                    </div>
-                    <div class="node-stat">
-                        <span class="label">Latency</span>
-                        <span class="value">${node.latency || 0}ms</span>
-                    </div>
-                    <div class="node-stat">
-                        <span class="label">Users</span>
-                        <span class="value">${node.current_connections}/${node.max_connections}</span>
-                    </div>
+                <div class="node-info">
+                    <div class="node-name">${node.country}</div>
+                    <div class="node-location">${node.city || node.name}</div>
+                </div>
+                <div class="node-load">
+                    <span class="load-value">${loadPercentage}%</span>
                 </div>
             </div>
         `;
@@ -331,17 +403,28 @@ function renderNodes(nodesToRender) {
 
     // Add click handlers
     document.querySelectorAll('.node-item').forEach(item => {
-        item.addEventListener('click', () => {
+        item.addEventListener('click', async () => {
             const nodeId = item.getAttribute('data-node-id');
             selectedNode = nodesToRender.find(n => n.id === nodeId);
-            renderNodes(nodesToRender);
+
+            // If already connected, ask to change server
+            const isCurrentlyConnected = await window.go.main.App.IsConnected();
+            if (isCurrentlyConnected) {
+                if (confirm(`Switch to ${selectedNode.name}?`)) {
+                    await disconnectFromVPN();
+                    await connectToVPN();
+                }
+            } else {
+                // Direct connect
+                await connectToVPN();
+            }
         });
     });
 }
 
 // Connect to VPN
 async function connectToVPN() {
-    console.log('Connect button clicked');
+    console.log('Connect to VPN called');
     console.log('Selected node:', selectedNode);
 
     if (!selectedNode) {
@@ -350,16 +433,24 @@ async function connectToVPN() {
         return;
     }
 
-    const connectBtn = document.getElementById('connect-btn');
-    const connectionStatus = document.getElementById('connection-status');
-    const connectionInfo = document.getElementById('connection-info');
+    // UI elements
+    const statusText = document.getElementById('connection-status-text');
+    const statusCircle = document.getElementById('status-circle');
+    const serverName = document.getElementById('server-name');
+    const serverIP = document.getElementById('server-ip');
+    const serverLoad = document.getElementById('server-load');
+    const serverDetails = document.getElementById('server-details');
+    const connectionStats = document.getElementById('connection-stats');
+    const protocolName = document.getElementById('protocol-name');
+    const disconnectBtn = document.getElementById('disconnect-btn');
+    const changeServerBtn = document.getElementById('change-server-btn');
 
     try {
         console.log('Starting connection process...');
-        connectBtn.disabled = true;
-        connectionStatus.className = 'status-connecting';
-        connectionStatus.querySelector('h3').textContent = 'Connecting...';
-        connectionInfo.textContent = `Connecting to ${selectedNode.name}...`;
+
+        // Update UI to show connecting
+        statusText.textContent = 'CONNECTING';
+        serverName.textContent = `Connecting to ${selectedNode.name}...`;
 
         // Determine protocol - prefer WireGuard
         const protocol = selectedNode.supports_wireguard ? 'wireguard' : 'openvpn';
@@ -373,71 +464,85 @@ async function connectToVPN() {
 
         if (response.success || response.connected) {
             console.log('Connection successful');
-            connectionStatus.className = 'status-connected';
-            connectionStatus.querySelector('h3').textContent = 'Connected';
-            connectionInfo.textContent = `Connected to ${selectedNode.name}`;
+
+            // Set connected node
+            connectedNode = selectedNode;
+
+            // Update status display
+            statusText.textContent = 'CONNECTED';
+            statusCircle.classList.add('connected');
+
+            // Update connection card
+            serverName.textContent = selectedNode.name;
+            serverIP.textContent = response.client_ip || selectedNode.ip || '-';
+            serverLoad.textContent = Math.round(selectedNode.load_score) + '%';
+            protocolName.textContent = protocol === 'wireguard' ? 'WireGuard' : 'OpenVPN';
+
+            // Show connection details
+            serverDetails.style.display = 'block';
+            connectionStats.style.display = 'block';
+            disconnectBtn.style.display = 'block';
+            changeServerBtn.style.display = 'block';
 
             // Reset connection start time
             connectionStartTime = new Date();
 
-            // Show disconnect button
-            connectBtn.style.display = 'none';
-            document.getElementById('disconnect-btn').style.display = 'block';
+            // Re-render nodes to show connected indicator
+            renderNodes(nodes);
 
-            // Show session panel with connection info
-            const sessionPanel = document.getElementById('session-panel');
-            if (sessionPanel) {
-                document.getElementById('session-id').textContent = response.node_id?.substring(0, 8) + '...' || 'N/A';
-                document.getElementById('tunnel-ip').textContent = response.client_ip || 'N/A';
-                document.getElementById('session-protocol').textContent = protocol.toUpperCase();
-                document.getElementById('connected-time').textContent = '0s';
-                document.getElementById('bytes-sent').textContent = '0 B';
-                document.getElementById('bytes-received').textContent = '0 B';
-                sessionPanel.style.display = 'block';
-            }
-
-            // Start session updates
+            // Start session updates for real-time stats
             startSessionUpdates();
         } else {
             console.error('Connection response did not indicate success');
+            throw new Error('Connection failed');
         }
     } catch (error) {
         console.error('Connection error:', error);
         alert(`Failed to connect: ${error}\n\nMake sure:\n1. WireGuard is installed (brew install wireguard-tools)\n2. You enter your password when prompted\n3. You have admin privileges`);
-        connectionStatus.className = 'status-disconnected';
-        connectionStatus.querySelector('h3').textContent = 'Disconnected';
-        connectionInfo.textContent = 'Connection failed';
-    } finally {
-        connectBtn.disabled = false;
-        console.log('Connect function completed');
+
+        // Reset UI
+        statusText.textContent = 'DISCONNECTED';
+        statusCircle.classList.remove('connected');
+        serverName.textContent = 'Connection Failed';
+        serverDetails.style.display = 'none';
+        connectionStats.style.display = 'none';
     }
+    console.log('Connect function completed');
 }
 
 // Disconnect from VPN
 async function disconnectFromVPN() {
     const disconnectBtn = document.getElementById('disconnect-btn');
-    const connectionStatus = document.getElementById('connection-status');
-    const connectionInfo = document.getElementById('connection-info');
+    const statusText = document.getElementById('connection-status-text');
+    const statusCircle = document.getElementById('status-circle');
+    const serverName = document.getElementById('server-name');
+    const serverDetails = document.getElementById('server-details');
+    const connectionStats = document.getElementById('connection-stats');
+    const changeServerBtn = document.getElementById('change-server-btn');
 
     try {
         disconnectBtn.disabled = true;
 
+        // Update UI
+        statusText.textContent = 'DISCONNECTING';
+
         // Disconnect - This will prompt for sudo password via terminal
         await window.go.main.App.DisconnectVPN();
 
-        connectionStatus.className = 'status-disconnected';
-        connectionStatus.querySelector('h3').textContent = 'Disconnected';
-        connectionInfo.textContent = 'Not connected to VPN';
+        // Clear connected node
+        connectedNode = null;
 
-        // Show connect button
-        document.getElementById('connect-btn').style.display = 'block';
+        // Update UI
+        statusText.textContent = 'DISCONNECTED';
+        statusCircle.classList.remove('connected');
+        serverName.textContent = 'Not Connected';
+        serverDetails.style.display = 'none';
+        connectionStats.style.display = 'none';
         disconnectBtn.style.display = 'none';
+        changeServerBtn.style.display = 'none';
 
-        // Hide session panel
-        const sessionPanel = document.getElementById('session-panel');
-        if (sessionPanel) {
-            sessionPanel.style.display = 'none';
-        }
+        // Re-render nodes to remove connected indicator
+        renderNodes(nodes);
 
         // Stop session updates
         stopSessionUpdates();
@@ -449,25 +554,6 @@ async function disconnectFromVPN() {
     }
 }
 
-// Update session info display
-function updateSessionInfo(session) {
-    document.getElementById('session-id').textContent = session.id.substring(0, 8) + '...';
-    document.getElementById('tunnel-ip').textContent = session.tunnel_ip || 'N/A';
-    document.getElementById('session-protocol').textContent = session.protocol || 'N/A';
-
-    const bytesSent = (session.bytes_sent / 1024 / 1024).toFixed(2);
-    const bytesReceived = (session.bytes_received / 1024 / 1024).toFixed(2);
-    document.getElementById('bytes-sent').textContent = `${bytesSent} MB`;
-    document.getElementById('bytes-received').textContent = `${bytesReceived} MB`;
-
-    if (session.connected_at) {
-        const connectedTime = new Date(session.connected_at);
-        const duration = Math.floor((Date.now() - connectedTime.getTime()) / 1000);
-        const minutes = Math.floor(duration / 60);
-        const seconds = duration % 60;
-        document.getElementById('connected-time').textContent = `${minutes}m ${seconds}s`;
-    }
-}
 
 // Start periodic session updates
 function startSessionUpdates() {
@@ -480,16 +566,25 @@ function startSessionUpdates() {
 
             if (!isConnected) {
                 // Connection lost, update UI
-                const connectionStatus = document.getElementById('connection-status');
-                const connectionInfo = document.getElementById('connection-info');
+                const statusText = document.getElementById('connection-status-text');
+                const statusCircle = document.getElementById('status-circle');
+                const serverName = document.getElementById('server-name');
+                const serverDetails = document.getElementById('server-details');
+                const connectionStats = document.getElementById('connection-stats');
 
-                connectionStatus.className = 'status-disconnected';
-                connectionStatus.querySelector('h3').textContent = 'Disconnected';
-                connectionInfo.textContent = 'Connection lost';
+                // Clear connected node
+                connectedNode = null;
 
-                document.getElementById('connect-btn').style.display = 'block';
+                statusText.textContent = 'DISCONNECTED';
+                statusCircle.classList.remove('connected');
+                serverName.textContent = 'Connection Lost';
+                serverDetails.style.display = 'none';
+                connectionStats.style.display = 'none';
                 document.getElementById('disconnect-btn').style.display = 'none';
-                document.getElementById('session-panel').style.display = 'none';
+                document.getElementById('change-server-btn').style.display = 'none';
+
+                // Re-render nodes to remove connected indicator
+                renderNodes(nodes);
 
                 stopSessionUpdates();
                 return;
@@ -498,24 +593,23 @@ function startSessionUpdates() {
             // Get VPN stats
             const stats = await window.go.main.App.GetVPNStats();
             if (stats && stats.connected) {
-                // Update session info
-                const sessionPanel = document.getElementById('session-panel');
-                if (sessionPanel && sessionPanel.style.display !== 'none') {
-                    // Update connection info
-                    if (stats.node_name) {
-                        document.getElementById('connection-info').textContent = `Connected to ${stats.node_name}`;
-                    }
+                // Update speed stats in connection card
+                const speedDown = document.getElementById('speed-down');
+                const speedUp = document.getElementById('speed-up');
 
-                    // Update transfer stats
-                    if (stats.bytes_sent !== undefined) {
-                        document.getElementById('bytes-sent').textContent = formatBytes(stats.bytes_sent);
-                    }
+                if (speedDown && speedUp) {
+                    // Calculate speed based on bytes transferred
+                    // Note: This is cumulative, not real-time speed
+                    // For real speed, we'd need to track changes over time
                     if (stats.bytes_received !== undefined) {
-                        document.getElementById('bytes-received').textContent = formatBytes(stats.bytes_received);
+                        // Simple approximation: show as KB/s
+                        const kbps = Math.round(stats.bytes_received / 1024 / 2); // Rough estimate
+                        speedDown.textContent = kbps > 0 ? `${kbps} KB/s` : '0 KB/s';
                     }
-
-                    // Update connected time
-                    updateConnectedTime();
+                    if (stats.bytes_sent !== undefined) {
+                        const kbps = Math.round(stats.bytes_sent / 1024 / 2); // Rough estimate
+                        speedUp.textContent = kbps > 0 ? `${kbps} KB/s` : '0 KB/s';
+                    }
                 }
             }
         } catch (error) {
@@ -526,30 +620,6 @@ function startSessionUpdates() {
 
 // Track connection start time
 let connectionStartTime = null;
-
-// Update connected time display
-function updateConnectedTime() {
-    if (!connectionStartTime) {
-        connectionStartTime = new Date();
-    }
-
-    const now = new Date();
-    const duration = Math.floor((now - connectionStartTime) / 1000);
-    const hours = Math.floor(duration / 3600);
-    const minutes = Math.floor((duration % 3600) / 60);
-    const seconds = duration % 60;
-
-    let timeStr = '';
-    if (hours > 0) {
-        timeStr = `${hours}h ${minutes}m ${seconds}s`;
-    } else if (minutes > 0) {
-        timeStr = `${minutes}m ${seconds}s`;
-    } else {
-        timeStr = `${seconds}s`;
-    }
-
-    document.getElementById('connected-time').textContent = timeStr;
-}
 
 // Stop session updates
 function stopSessionUpdates() {

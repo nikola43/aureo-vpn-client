@@ -70,76 +70,92 @@
 
         <!-- Main Dashboard -->
         <div id="dashboard-screen" class="screen">
-            <div class="header">
-                <h2>Aureo VPN</h2>
-                <div class="user-info">
-                    <span id="username">User</span>
-                    <button id="logout-btn" class="btn btn-secondary">Logout</button>
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- Connection Status Card -->
+                <div class="connection-card" id="connection-card">
+                    <div class="connection-header">
+                        <button class="back-btn" id="back-btn" style="display:none;">←</button>
+                        <div class="connection-title">
+                            <div class="server-name" id="server-name">Not Connected</div>
+                            <div class="server-details" id="server-details" style="display:none;">
+                                <div class="server-ip">IP: <span id="server-ip">-</span></div>
+                                <div class="server-load">Load: <span id="server-load">-</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="connection-stats" id="connection-stats" style="display:none;">
+                        <div class="protocol-badge">
+                            <span id="protocol-name">WireGuard</span>
+                        </div>
+                        <div class="speed-stats">
+                            <span class="speed-down">↓ <span id="speed-down">0 KB/s</span></span>
+                            <span class="speed-up">↑ <span id="speed-up">0 KB/s</span></span>
+                        </div>
+                    </div>
+
+                    <div class="connection-actions">
+                        <button id="disconnect-btn" class="btn btn-disconnect" style="display:none;">Disconnect</button>
+                        <button id="change-server-btn" class="btn btn-secondary" style="display:none;">Change server</button>
+                    </div>
                 </div>
-            </div>
 
-            <div class="dashboard-content">
-                <!-- Connection Status -->
-                <div class="connection-panel">
-                    <div id="connection-status" class="status-disconnected">
-                        <div class="status-indicator"></div>
-                        <h3>Disconnected</h3>
-                        <p id="connection-info">Not connected to VPN</p>
-                    </div>
-                    <button id="connect-btn" class="btn btn-primary btn-large">Connect</button>
-                    <button id="disconnect-btn" class="btn btn-danger btn-large" style="display:none;">Disconnect</button>
+                <!-- Countries Tab -->
+                <div class="sidebar-tabs">
+                    <button class="tab-btn active" data-tab="countries">Countries</button>
+                    <button class="tab-btn" data-tab="profiles">Profiles</button>
                 </div>
 
-                <!-- Node Selection -->
-                <div class="node-panel">
-                    <div class="panel-header">
-                        <h3>Select Server</h3>
-                        <button id="refresh-nodes-btn" class="btn btn-secondary">Refresh</button>
-                    </div>
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <button class="action-btn" title="Quick Connect">⚡</button>
+                    <button class="action-btn" title="Secure Core">🛡️</button>
+                    <button class="action-btn" title="P2P">📁</button>
+                    <button class="action-btn" title="Random">🎲</button>
+                </div>
 
-                    <div class="filters">
-                        <select id="protocol-filter">
-                            <option value="">All Protocols</option>
-                            <option value="wireguard">WireGuard</option>
-                            <option value="openvpn">OpenVPN</option>
-                        </select>
-                        <input type="text" id="country-filter" placeholder="Filter by country">
-                    </div>
+                <!-- Search -->
+                <div class="search-box">
+                    <input type="text" id="country-filter" placeholder="Search for country">
+                </div>
 
+                <!-- Countries List -->
+                <div class="countries-list" id="countries-list">
+                    <div class="section-header">
+                        <span class="section-icon">⚡</span>
+                        <span>Fastest</span>
+                    </div>
                     <div id="nodes-list" class="nodes-list">
                         <div class="loading">Loading nodes...</div>
                     </div>
                 </div>
 
-                <!-- Session Info -->
-                <div class="session-panel" id="session-panel" style="display:none;">
-                    <h3>Session Information</h3>
-                    <div class="session-info">
-                        <div class="info-row">
-                            <span class="label">Session ID:</span>
-                            <span id="session-id">-</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="label">Tunnel IP:</span>
-                            <span id="tunnel-ip">-</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="label">Protocol:</span>
-                            <span id="session-protocol">-</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="label">Data Sent:</span>
-                            <span id="bytes-sent">0 MB</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="label">Data Received:</span>
-                            <span id="bytes-received">0 MB</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="label">Connected:</span>
-                            <span id="connected-time">-</span>
+                <!-- User Info -->
+                <div class="sidebar-footer">
+                    <div class="user-badge">
+                        <span id="username">User</span>
+                    </div>
+                    <button id="logout-btn" class="btn-logout">Logout</button>
+                </div>
+            </div>
+
+            <!-- Map Container -->
+            <div class="map-container">
+                <div class="map-overlay">
+                    <div class="status-display" id="status-display">
+                        <div class="status-text" id="connection-status-text">DISCONNECTED</div>
+                        <div class="status-icon">
+                            <div class="status-circle" id="status-circle"></div>
                         </div>
                     </div>
+                </div>
+                <div class="map-background">
+                    <svg viewBox="0 0 1000 500" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Simplified world map SVG -->
+                        <path d="M 50 100 L 950 100 L 950 400 L 50 400 Z" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+                        <text x="500" y="250" text-anchor="middle" fill="rgba(255,255,255,0.03)" font-size="120" font-weight="bold">WORLD MAP</text>
+                    </svg>
                 </div>
             </div>
         </div>
