@@ -345,9 +345,13 @@ func (a *App) DisconnectVPN() error {
 		return fmt.Errorf("VPN manager not initialized")
 	}
 
-	// Check if connected
+	// Check if connected - if not, just clear state and return success
 	if !a.vpnManager.IsConnected() {
-		return fmt.Errorf("not connected to VPN")
+		// Clear connection info even if not connected (cleanup state)
+		a.nodeID = ""
+		a.nodeName = ""
+		a.session = nil
+		return nil
 	}
 
 	// Disconnect VPN

@@ -84,8 +84,27 @@ func (m *WireGuardManager) Connect() error {
 		return fmt.Errorf("WireGuard not installed. Install with: brew install wireguard-tools")
 	}
 
-	// Run wg-quick up
-	cmd := exec.Command("sudo", "wg-quick", "up", configPath)
+	// Create a temporary shell script for macOS
+	scriptContent := fmt.Sprintf(`#!/bin/bash
+# Try to bring down any existing WireGuard interface
+wg-quick down "%s" 2>/dev/null || true
+
+# Small delay to ensure interface is fully removed
+sleep 0.5
+
+# Bring up new interface
+wg-quick up "%s"
+`, configPath, configPath)
+
+	scriptPath := filepath.Join(m.configDir, "connect.sh")
+	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
+		return fmt.Errorf("failed to create connect script: %w", err)
+	}
+	defer os.Remove(scriptPath)
+
+	// Run the script through osascript with admin privileges
+	script := fmt.Sprintf(`do shell script "%s" with administrator privileges`, scriptPath)
+	cmd := exec.Command("osascript", "-e", script)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to start VPN: %w\nOutput: %s", err, string(output))
@@ -98,11 +117,14 @@ func (m *WireGuardManager) Connect() error {
 func (m *WireGuardManager) Disconnect() error {
 	configPath := filepath.Join(m.configDir, "wg0.conf")
 
-	// Run wg-quick down
-	cmd := exec.Command("sudo", "wg-quick", "down", configPath)
+	// Run wg-quick down through osascript to get admin privileges via GUI prompt
+	escapedPath := strings.ReplaceAll(configPath, `"`, `\"`)
+	script := fmt.Sprintf(`do shell script "wg-quick down %s" with administrator privileges`, escapedPath)
+
+	cmd := exec.Command("osascript", "-e", script)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		// Don't return error if already disconnected
+		// Check if it's just because interface doesn't exist
 		if strings.Contains(string(output), "is not a WireGuard interface") {
 			return nil
 		}
@@ -123,31 +145,48 @@ func (m *WireGuardManager) IsConnected() bool {
 		return false
 	}
 
-	// Try wg without sudo first (some systems allow it)
-	cmd := exec.Command("wg", "show")
+	// On macOS, check if the utun interface exists by using ifconfig
+	// This doesn't require sudo and is more reliable
+	cmd := exec.Command("ifconfig")
 	output, err := cmd.Output()
-
-	// If it fails, try with sudo but don't prompt (use cached credentials)
-	if err != nil || len(output) == 0 {
-		cmd = exec.Command("sudo", "-n", "wg", "show")
-		output, err = cmd.Output()
-		if err != nil {
-			// If sudo -n fails (no cached credentials), assume not connected
-			// rather than prompting for password
-			return false
-		}
+	if err != nil {
+		return false
 	}
 
-	// Check if there's any WireGuard interface active
-	return len(output) > 0 && strings.Contains(string(output), "interface:")
+	// Look for a utun interface with the WireGuard marker in output
+	// WireGuard on macOS typically creates utun interfaces
+	outputStr := string(output)
+
+	// If we can run wg show without sudo, use it for a more accurate check
+	wgCmd := exec.Command("wg", "show")
+	wgOutput, wgErr := wgCmd.Output()
+	if wgErr == nil && len(wgOutput) > 0 {
+		return strings.Contains(string(wgOutput), "interface:")
+	}
+
+	// Fallback: check if any utun interface exists and config file is present
+	// This is a reasonable indication that WireGuard is running
+	return strings.Contains(outputStr, "utun") && configPath != ""
 }
 
 // GetStats returns connection statistics
 func (m *WireGuardManager) GetStats() (map[string]interface{}, error) {
-	cmd := exec.Command("sudo", "wg", "show")
+	// Try without sudo first
+	cmd := exec.Command("wg", "show")
 	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get stats: %w", err)
+
+	// If that fails, try with sudo -n (non-interactive)
+	if err != nil || len(output) == 0 {
+		cmd = exec.Command("sudo", "-n", "wg", "show")
+		output, err = cmd.Output()
+		if err != nil {
+			// If sudo fails, return basic connected status without detailed stats
+			stats := make(map[string]interface{})
+			stats["connected"] = m.IsConnected()
+			stats["bytes_sent"] = int64(0)
+			stats["bytes_received"] = int64(0)
+			return stats, nil
+		}
 	}
 
 	stats := make(map[string]interface{})

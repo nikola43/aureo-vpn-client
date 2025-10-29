@@ -78,30 +78,45 @@
             <div class="sidebar">
                 <!-- Connection Status Card -->
                 <div class="connection-card" id="connection-card">
-                    <div class="connection-header">
-                        <button class="back-btn" id="back-btn" style="display:none;">←</button>
-                        <div class="connection-title">
-                            <div class="server-name" id="server-name">Not Connected</div>
-                            <div class="server-details" id="server-details" style="display:none;">
-                                <div class="server-ip">IP: <span id="server-ip">-</span></div>
-                                <div class="server-load">Load: <span id="server-load">-</span></div>
+                    <!-- Flag background (shown when connected) -->
+                    <div class="flag-background" id="flag-background" style="display:none;"></div>
+
+                    <!-- Not Connected View -->
+                    <div class="not-connected-view" id="not-connected-view">
+                        <div class="status-message" id="status-message">You are not connected</div>
+                        <div class="current-ip">IP: <span id="current-ip">Loading...</span></div>
+                        <button id="quick-connect-btn" class="btn-quick-connect">Quick Connect</button>
+                    </div>
+
+                    <!-- Connected View -->
+                    <div class="connected-view" id="connected-view" style="display:none;">
+                        <div class="server-title" id="server-title">United States</div>
+                        <div class="server-info-row">
+                            <span class="info-label">IP:</span>
+                            <span id="server-ip">-</span>
+                        </div>
+                        <div class="server-info-row">
+                            <span class="info-label">Load:</span>
+                            <span id="server-load-display">-</span>
+                            <div class="load-circle" id="load-circle">
+                                <svg class="load-ring" viewBox="0 0 36 36">
+                                    <path class="load-ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                    <path class="load-ring-progress" id="load-ring-progress" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                </svg>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="connection-stats" id="connection-stats" style="display:none;">
-                        <div class="protocol-badge">
+                        <div class="protocol-badge-new">
                             <span id="protocol-name">WireGuard</span>
                         </div>
-                        <div class="speed-stats">
-                            <span class="speed-down">↓ <span id="speed-down">0 KB/s</span></span>
-                            <span class="speed-up">↑ <span id="speed-up">0 KB/s</span></span>
-                        </div>
-                    </div>
 
-                    <div class="connection-actions">
-                        <button id="disconnect-btn" class="btn btn-disconnect" style="display:none;">Disconnect</button>
-                        <button id="change-server-btn" class="btn btn-secondary" style="display:none;">Change server</button>
+                        <div class="speed-row">
+                            <span class="speed-item">↓ <span id="speed-down">0 B/s</span></span>
+                            <span class="speed-item">↑ <span id="speed-up">0 B/s</span></span>
+                        </div>
+
+                        <button id="disconnect-btn" class="btn-action">Disconnect</button>
+                        <button id="change-server-btn" class="btn-action btn-secondary">Change server</button>
                     </div>
                 </div>
 
