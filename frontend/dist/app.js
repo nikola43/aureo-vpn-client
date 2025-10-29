@@ -13,10 +13,80 @@ function showScreen(screenId) {
 }
 
 // Initialize app
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
+    console.log('App loading...');
+    console.log('Wails runtime available:', !!window.go);
+
     initLoginScreen();
+    initRegisterScreen();
+    initAuthToggle();
+    initPasswordToggles();
     initDashboard();
+
+    // Check for saved session
+    if (window.go && window.go.main && window.go.main.App) {
+        await checkSavedSession();
+    } else {
+        console.error('Wails runtime not available');
+    }
 });
+
+// Check for saved session and auto-login
+async function checkSavedSession() {
+    try {
+        const sessionData = await window.go.main.App.CheckSavedSession();
+
+        if (sessionData && sessionData.has_session) {
+            // Auto-login with saved session
+            currentUser = sessionData.user;
+            document.getElementById('username').textContent = sessionData.user.username;
+            showScreen('dashboard-screen');
+            await checkConnectionStatus();
+            await loadNodes();
+        }
+    } catch (error) {
+        console.error('Failed to check saved session:', error);
+        // If there's an error, just stay on login screen
+    }
+}
+
+// Auth view toggle
+function initAuthToggle() {
+    const showRegisterLink = document.getElementById('show-register');
+    const showLoginLink = document.getElementById('show-login');
+    const loginView = document.getElementById('login-view');
+    const registerView = document.getElementById('register-view');
+
+    showRegisterLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        loginView.style.display = 'none';
+        registerView.style.display = 'block';
+    });
+
+    showLoginLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        registerView.style.display = 'none';
+        loginView.style.display = 'block';
+    });
+}
+
+// Password toggle functionality
+function initPasswordToggles() {
+    document.querySelectorAll('.password-toggle').forEach(toggle => {
+        toggle.addEventListener('click', () => {
+            const targetId = toggle.getAttribute('data-target');
+            const input = document.getElementById(targetId);
+
+            if (input.type === 'password') {
+                input.type = 'text';
+                toggle.style.color = '#9ca3af';
+            } else {
+                input.type = 'password';
+                toggle.style.color = '#6b7280';
+            }
+        });
+    });
+}
 
 // Login screen initialization
 function initLoginScreen() {
@@ -43,6 +113,7 @@ function initLoginScreen() {
                 currentUser = response.user;
                 document.getElementById('username').textContent = response.user.username;
                 showScreen('dashboard-screen');
+                await checkConnectionStatus();
                 await loadNodes();
             }
         } catch (error) {
@@ -51,8 +122,45 @@ function initLoginScreen() {
     });
 }
 
+// Register screen initialization
+function initRegisterScreen() {
+    const registerForm = document.getElementById('register-form');
+    const registerError = document.getElementById('register-error');
+    const apiUrlInput = document.getElementById('api-url');
+
+    registerForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        registerError.textContent = '';
+
+        const username = document.getElementById('register-username').value;
+        const email = document.getElementById('register-email').value;
+        const password = document.getElementById('register-password').value;
+        const apiUrl = apiUrlInput.value;
+
+        try {
+            // Set API URL
+            await window.go.main.App.SetAPIURL(apiUrl);
+
+            // Attempt register
+            const response = await window.go.main.App.Register(email, password, username);
+
+            if (response.success) {
+                currentUser = response.user;
+                document.getElementById('username').textContent = response.user.username;
+                showScreen('dashboard-screen');
+                await checkConnectionStatus();
+                await loadNodes();
+            }
+        } catch (error) {
+            registerError.textContent = error.message || 'Registration failed. Please try again.';
+        }
+    });
+}
+
 // Dashboard initialization
 function initDashboard() {
+    console.log('Initializing dashboard...');
+
     // Logout button
     document.getElementById('logout-btn').addEventListener('click', async () => {
         await window.go.main.App.Logout();
@@ -67,14 +175,92 @@ function initDashboard() {
     document.getElementById('refresh-nodes-btn').addEventListener('click', loadNodes);
 
     // Connect button
-    document.getElementById('connect-btn').addEventListener('click', connectToVPN);
+    const connectBtn = document.getElementById('connect-btn');
+    if (connectBtn) {
+        console.log('Connect button found, adding event listener');
+        connectBtn.addEventListener('click', () => {
+            console.log('Connect button click event fired');
+            connectToVPN();
+        });
+    } else {
+        console.error('Connect button not found in DOM');
+    }
 
     // Disconnect button
-    document.getElementById('disconnect-btn').addEventListener('click', disconnectFromVPN);
+    const disconnectBtn = document.getElementById('disconnect-btn');
+    if (disconnectBtn) {
+        console.log('Disconnect button found, adding event listener');
+        disconnectBtn.addEventListener('click', () => {
+            console.log('Disconnect button click event fired');
+            disconnectFromVPN();
+        });
+    } else {
+        console.error('Disconnect button not found in DOM');
+    }
 
     // Filters
     document.getElementById('protocol-filter').addEventListener('change', loadNodes);
     document.getElementById('country-filter').addEventListener('input', filterNodes);
+}
+
+// Check connection status when dashboard loads
+async function checkConnectionStatus() {
+    try {
+        const isConnected = await window.go.main.App.IsConnected();
+
+        if (isConnected) {
+            // Update UI to show connected state
+            const connectionStatus = document.getElementById('connection-status');
+            const connectionInfo = document.getElementById('connection-info');
+
+            connectionStatus.className = 'status-connected';
+            connectionStatus.querySelector('h3').textContent = 'Connected';
+            connectionInfo.textContent = 'Connected to VPN';
+
+            // Show disconnect button
+            document.getElementById('connect-btn').style.display = 'none';
+            document.getElementById('disconnect-btn').style.display = 'block';
+
+            // Get VPN stats and update session panel
+            try {
+                const stats = await window.go.main.App.GetVPNStats();
+                if (stats && stats.connected) {
+                    const sessionPanel = document.getElementById('session-panel');
+                    if (sessionPanel) {
+                        document.getElementById('session-id').textContent = stats.node_id?.substring(0, 8) + '...' || 'N/A';
+                        document.getElementById('tunnel-ip').textContent = 'Connected';
+                        document.getElementById('session-protocol').textContent = 'WIREGUARD';
+                        document.getElementById('connected-time').textContent = 'Active';
+
+                        if (stats.node_name) {
+                            connectionInfo.textContent = `Connected to ${stats.node_name}`;
+                        }
+
+                        sessionPanel.style.display = 'block';
+                    }
+
+                    // Start session updates
+                    startSessionUpdates();
+                }
+            } catch (err) {
+                console.error('Failed to get VPN stats:', err);
+            }
+        } else {
+            // Ensure disconnected UI
+            const connectionStatus = document.getElementById('connection-status');
+            const connectionInfo = document.getElementById('connection-info');
+
+            connectionStatus.className = 'status-disconnected';
+            connectionStatus.querySelector('h3').textContent = 'Disconnected';
+            connectionInfo.textContent = 'Not connected to VPN';
+
+            document.getElementById('connect-btn').style.display = 'block';
+            document.getElementById('disconnect-btn').style.display = 'none';
+            document.getElementById('session-panel').style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Failed to check connection status:', error);
+    }
 }
 
 // Load nodes from API
@@ -155,7 +341,11 @@ function renderNodes(nodesToRender) {
 
 // Connect to VPN
 async function connectToVPN() {
+    console.log('Connect button clicked');
+    console.log('Selected node:', selectedNode);
+
     if (!selectedNode) {
+        console.error('No node selected');
         alert('Please select a node first');
         return;
     }
@@ -165,40 +355,61 @@ async function connectToVPN() {
     const connectionInfo = document.getElementById('connection-info');
 
     try {
+        console.log('Starting connection process...');
         connectBtn.disabled = true;
         connectionStatus.className = 'status-connecting';
         connectionStatus.querySelector('h3').textContent = 'Connecting...';
         connectionInfo.textContent = `Connecting to ${selectedNode.name}...`;
 
-        // Determine protocol
+        // Determine protocol - prefer WireGuard
         const protocol = selectedNode.supports_wireguard ? 'wireguard' : 'openvpn';
+        console.log('Using protocol:', protocol);
+        console.log('Node ID:', selectedNode.id);
 
-        // Connect
+        // Connect - This will prompt for sudo password via terminal
+        console.log('Calling ConnectToVPN...');
         const response = await window.go.main.App.ConnectToVPN(selectedNode.id, protocol);
+        console.log('Connection response:', response);
 
-        if (response.success) {
+        if (response.success || response.connected) {
+            console.log('Connection successful');
             connectionStatus.className = 'status-connected';
             connectionStatus.querySelector('h3').textContent = 'Connected';
             connectionInfo.textContent = `Connected to ${selectedNode.name}`;
+
+            // Reset connection start time
+            connectionStartTime = new Date();
 
             // Show disconnect button
             connectBtn.style.display = 'none';
             document.getElementById('disconnect-btn').style.display = 'block';
 
-            // Show session panel and update info
-            updateSessionInfo(response.session);
-            document.getElementById('session-panel').style.display = 'block';
+            // Show session panel with connection info
+            const sessionPanel = document.getElementById('session-panel');
+            if (sessionPanel) {
+                document.getElementById('session-id').textContent = response.node_id?.substring(0, 8) + '...' || 'N/A';
+                document.getElementById('tunnel-ip').textContent = response.client_ip || 'N/A';
+                document.getElementById('session-protocol').textContent = protocol.toUpperCase();
+                document.getElementById('connected-time').textContent = '0s';
+                document.getElementById('bytes-sent').textContent = '0 B';
+                document.getElementById('bytes-received').textContent = '0 B';
+                sessionPanel.style.display = 'block';
+            }
 
             // Start session updates
             startSessionUpdates();
+        } else {
+            console.error('Connection response did not indicate success');
         }
     } catch (error) {
-        alert(`Failed to connect: ${error.message}`);
+        console.error('Connection error:', error);
+        alert(`Failed to connect: ${error}\n\nMake sure:\n1. WireGuard is installed (brew install wireguard-tools)\n2. You enter your password when prompted\n3. You have admin privileges`);
         connectionStatus.className = 'status-disconnected';
         connectionStatus.querySelector('h3').textContent = 'Disconnected';
         connectionInfo.textContent = 'Connection failed';
     } finally {
         connectBtn.disabled = false;
+        console.log('Connect function completed');
     }
 }
 
@@ -211,6 +422,7 @@ async function disconnectFromVPN() {
     try {
         disconnectBtn.disabled = true;
 
+        // Disconnect - This will prompt for sudo password via terminal
         await window.go.main.App.DisconnectVPN();
 
         connectionStatus.className = 'status-disconnected';
@@ -222,12 +434,16 @@ async function disconnectFromVPN() {
         disconnectBtn.style.display = 'none';
 
         // Hide session panel
-        document.getElementById('session-panel').style.display = 'none';
+        const sessionPanel = document.getElementById('session-panel');
+        if (sessionPanel) {
+            sessionPanel.style.display = 'none';
+        }
 
         // Stop session updates
         stopSessionUpdates();
     } catch (error) {
-        alert(`Failed to disconnect: ${error.message}`);
+        console.error('Disconnect error:', error);
+        alert(`Failed to disconnect: ${error}\n\nYou may need to manually run: sudo wg-quick down ~/.aureo-vpn/wg0.conf`);
     } finally {
         disconnectBtn.disabled = false;
     }
@@ -259,15 +475,80 @@ function startSessionUpdates() {
 
     sessionUpdateInterval = setInterval(async () => {
         try {
-            const session = await window.go.main.App.GetCurrentSession();
-            if (session) {
-                updateSessionInfo(session);
+            // Check if still connected
+            const isConnected = await window.go.main.App.IsConnected();
+
+            if (!isConnected) {
+                // Connection lost, update UI
+                const connectionStatus = document.getElementById('connection-status');
+                const connectionInfo = document.getElementById('connection-info');
+
+                connectionStatus.className = 'status-disconnected';
+                connectionStatus.querySelector('h3').textContent = 'Disconnected';
+                connectionInfo.textContent = 'Connection lost';
+
+                document.getElementById('connect-btn').style.display = 'block';
+                document.getElementById('disconnect-btn').style.display = 'none';
+                document.getElementById('session-panel').style.display = 'none';
+
+                stopSessionUpdates();
+                return;
+            }
+
+            // Get VPN stats
+            const stats = await window.go.main.App.GetVPNStats();
+            if (stats && stats.connected) {
+                // Update session info
+                const sessionPanel = document.getElementById('session-panel');
+                if (sessionPanel && sessionPanel.style.display !== 'none') {
+                    // Update connection info
+                    if (stats.node_name) {
+                        document.getElementById('connection-info').textContent = `Connected to ${stats.node_name}`;
+                    }
+
+                    // Update transfer stats
+                    if (stats.bytes_sent !== undefined) {
+                        document.getElementById('bytes-sent').textContent = formatBytes(stats.bytes_sent);
+                    }
+                    if (stats.bytes_received !== undefined) {
+                        document.getElementById('bytes-received').textContent = formatBytes(stats.bytes_received);
+                    }
+
+                    // Update connected time
+                    updateConnectedTime();
+                }
             }
         } catch (error) {
             console.error('Failed to update session:', error);
-            stopSessionUpdates();
         }
-    }, 5000); // Update every 5 seconds
+    }, 2000); // Update every 2 seconds for better real-time feel
+}
+
+// Track connection start time
+let connectionStartTime = null;
+
+// Update connected time display
+function updateConnectedTime() {
+    if (!connectionStartTime) {
+        connectionStartTime = new Date();
+    }
+
+    const now = new Date();
+    const duration = Math.floor((now - connectionStartTime) / 1000);
+    const hours = Math.floor(duration / 3600);
+    const minutes = Math.floor((duration % 3600) / 60);
+    const seconds = duration % 60;
+
+    let timeStr = '';
+    if (hours > 0) {
+        timeStr = `${hours}h ${minutes}m ${seconds}s`;
+    } else if (minutes > 0) {
+        timeStr = `${minutes}m ${seconds}s`;
+    } else {
+        timeStr = `${seconds}s`;
+    }
+
+    document.getElementById('connected-time').textContent = timeStr;
 }
 
 // Stop session updates
@@ -276,6 +557,8 @@ function stopSessionUpdates() {
         clearInterval(sessionUpdateInterval);
         sessionUpdateInterval = null;
     }
+    // Reset connection start time
+    connectionStartTime = null;
 }
 
 // Format bytes

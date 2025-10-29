@@ -265,6 +265,26 @@ func (c *Client) GenerateConfig(nodeID, protocol string) (*models.GenerateConfig
 	return &configResp, nil
 }
 
+// RegisterWireGuardPeer registers a WireGuard peer with the VPN server
+func (c *Client) RegisterWireGuardPeer(nodeID, publicKey string) (*models.WireGuardConfigResponse, error) {
+	reqBody := map[string]string{
+		"node_id":    nodeID,
+		"public_key": publicKey,
+	}
+
+	respBody, err := c.doRequest("POST", "/api/v1/config/generate", reqBody, true)
+	if err != nil {
+		return nil, err
+	}
+
+	var configResp models.WireGuardConfigResponse
+	if err := json.Unmarshal(respBody, &configResp); err != nil {
+		return nil, fmt.Errorf("failed to parse wireguard config response: %w", err)
+	}
+
+	return &configResp, nil
+}
+
 // GetUserProfile retrieves the current user's profile
 func (c *Client) GetUserProfile() (*models.User, error) {
 	respBody, err := c.doRequest("GET", "/api/v1/user/profile", nil, true)

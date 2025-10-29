@@ -10,24 +10,60 @@
     <div id="app">
         <!-- Login Screen -->
         <div id="login-screen" class="screen active">
-            <div class="login-container">
-                <h1>Aureo VPN</h1>
-                <div class="logo">🔒</div>
-                <form id="login-form">
-                    <div class="form-group">
-                        <label>Email</label>
-                        <input type="email" id="login-email" required>
+            <div class="auth-container">
+                <div class="auth-content" id="login-view">
+                    <h1>Welcome back</h1>
+                    <p class="auth-subtitle">Don't have an account? <a href="#" id="show-register">Sign up</a></p>
+
+                    <form id="login-form">
+                        <div class="form-group">
+                            <input type="email" id="login-email" placeholder="Email" required>
+                        </div>
+                        <div class="form-group password-group">
+                            <input type="password" id="login-password" placeholder="Enter your password" required>
+                            <span class="password-toggle" data-target="login-password">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                            </span>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Log in</button>
+                        <div id="login-error" class="error-message"></div>
+                    </form>
+
+                    <div class="settings-section">
+                        <label>API URL</label>
+                        <input type="text" id="api-url" value="http://155.138.238.145:8080" placeholder="http://your-api-server:8080">
+                        <small>Enter base URL only (without /api/v1)</small>
                     </div>
-                    <div class="form-group">
-                        <label>Password</label>
-                        <input type="password" id="login-password" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Login</button>
-                    <div id="login-error" class="error-message"></div>
-                </form>
-                <div class="settings-section">
-                    <label>API URL</label>
-                    <input type="text" id="api-url" value="http://localhost:8080">
+                </div>
+
+                <div class="auth-content" id="register-view" style="display: none;">
+                    <h1>Create an account</h1>
+                    <p class="auth-subtitle">Already have an account? <a href="#" id="show-login">Log in</a></p>
+
+                    <form id="register-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <input type="text" id="register-username" placeholder="Username" required>
+                            </div>
+                            <div class="form-group">
+                                <input type="email" id="register-email" placeholder="Email" required>
+                            </div>
+                        </div>
+                        <div class="form-group password-group">
+                            <input type="password" id="register-password" placeholder="Enter your password" required>
+                            <span class="password-toggle" data-target="register-password">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                            </span>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Create account</button>
+                        <div id="register-error" class="error-message"></div>
+                    </form>
                 </div>
             </div>
         </div>

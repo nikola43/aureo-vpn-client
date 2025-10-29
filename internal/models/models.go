@@ -25,6 +25,11 @@ type User struct {
 	SubscriptionExpiry time.Time `json:"subscription_expiry"`
 	IsActive           bool      `json:"is_active"`
 	IsAdmin            bool      `json:"is_admin"`
+	DataTransferredGB  float64   `json:"data_transferred_gb"`
+	ConnectionCount    int       `json:"connection_count"`
+	TwoFactorEnabled   bool      `json:"two_factor_enabled"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
 }
 
 // VPNNode represents a VPN node
@@ -90,6 +95,14 @@ type GenerateConfigResponse struct {
 	ConfigID      string `json:"config_id"`
 	ConfigContent string `json:"config_content"`
 	Protocol      string `json:"protocol"`
+}
+
+// WireGuardConfigResponse represents the response from registering a WireGuard peer
+type WireGuardConfigResponse struct {
+	ServerPublicKey string `json:"server_public_key"`
+	ServerEndpoint  string `json:"server_endpoint"`
+	ClientIP        string `json:"client_ip"`
+	DNS             string `json:"dns"`
 }
 
 // ErrorResponse represents an error response from the API

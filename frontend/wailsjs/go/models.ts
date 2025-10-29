@@ -63,6 +63,13 @@ export namespace models {
 	    subscription_expiry: any;
 	    is_active: boolean;
 	    is_admin: boolean;
+	    data_transferred_gb: number;
+	    connection_count: number;
+	    two_factor_enabled: boolean;
+	    // Go type: time
+	    created_at: any;
+	    // Go type: time
+	    updated_at: any;
 	
 	    static createFrom(source: any = {}) {
 	        return new User(source);
@@ -78,6 +85,11 @@ export namespace models {
 	        this.subscription_expiry = this.convertValues(source["subscription_expiry"], null);
 	        this.is_active = source["is_active"];
 	        this.is_admin = source["is_admin"];
+	        this.data_transferred_gb = source["data_transferred_gb"];
+	        this.connection_count = source["connection_count"];
+	        this.two_factor_enabled = source["two_factor_enabled"];
+	        this.created_at = this.convertValues(source["created_at"], null);
+	        this.updated_at = this.convertValues(source["updated_at"], null);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
