@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aureo VPN Client</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Login Screen -->
+        <div id="login-screen" class="screen active">
+            <div class="login-container">
+                <h1>Aureo VPN</h1>
+                <div class="logo">🔒</div>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="login-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="login-password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Login</button>
+                    <div id="login-error" class="error-message"></div>
+                </form>
+                <div class="settings-section">
+                    <label>API URL</label>
+                    <input type="text" id="api-url" value="http://localhost:8080">
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Dashboard -->
+        <div id="dashboard-screen" class="screen">
+            <div class="header">
+                <h2>Aureo VPN</h2>
+                <div class="user-info">
+                    <span id="username">User</span>
+                    <button id="logout-btn" class="btn btn-secondary">Logout</button>
+                </div>
+            </div>
+
+            <div class="dashboard-content">
+                <!-- Connection Status -->
+                <div class="connection-panel">
+                    <div id="connection-status" class="status-disconnected">
+                        <div class="status-indicator"></div>
+                        <h3>Disconnected</h3>
+                        <p id="connection-info">Not connected to VPN</p>
+                    </div>
+                    <button id="connect-btn" class="btn btn-primary btn-large">Connect</button>
+                    <button id="disconnect-btn" class="btn btn-danger btn-large" style="display:none;">Disconnect</button>
+                </div>
+
+                <!-- Node Selection -->
+                <div class="node-panel">
+                    <div class="panel-header">
+                        <h3>Select Server</h3>
+                        <button id="refresh-nodes-btn" class="btn btn-secondary">Refresh</button>
+                    </div>
+
+                    <div class="filters">
+                        <select id="protocol-filter">
+                            <option value="">All Protocols</option>
+                            <option value="wireguard">WireGuard</option>
+                            <option value="openvpn">OpenVPN</option>
+                        </select>
+                        <input type="text" id="country-filter" placeholder="Filter by country">
+                    </div>
+
+                    <div id="nodes-list" class="nodes-list">
+                        <div class="loading">Loading nodes...</div>
+                    </div>
+                </div>
+
+                <!-- Session Info -->
+                <div class="session-panel" id="session-panel" style="display:none;">
+                    <h3>Session Information</h3>
+                    <div class="session-info">
+                        <div class="info-row">
+                            <span class="label">Session ID:</span>
+                            <span id="session-id">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Tunnel IP:</span>
+                            <span id="tunnel-ip">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Protocol:</span>
+                            <span id="session-protocol">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Data Sent:</span>
+                            <span id="bytes-sent">0 MB</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Data Received:</span>
+                            <span id="bytes-received">0 MB</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Connected:</span>
+                            <span id="connected-time">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="wailsjs/runtime/runtime.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

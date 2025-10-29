@@ -1,0 +1,20 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "aureo-vpn-client",
+  "outputfilename": "aureo-vpn-client",
+  "frontend:install": "",
+  "frontend:build": "",
+  "frontend:dev:watcher": "",
+  "frontend:dev:serverUrl": "",
+  "author": {
+    "name": "Aureo VPN",
+    "email": "info@aureo-vpn.com"
+  },
+  "info": {
+    "companyName": "Aureo VPN",
+    "productName": "Aureo VPN Client",
+    "productVersion": "1.0.0",
+    "copyright": "Copyright.........",
+    "comments": "Desktop VPN Client for Aureo VPN"
+  }
+}
