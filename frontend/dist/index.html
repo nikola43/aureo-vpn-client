@@ -142,26 +142,20 @@
 
             <!-- Map Container -->
             <div class="map-container">
-                <div class="map-overlay">
-                    <div class="status-display" id="status-display">
-                        <div class="status-text" id="connection-status-text">DISCONNECTED</div>
-                        <div class="status-icon">
-                            <div class="status-circle" id="status-circle"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="map-background">
-                    <svg viewBox="0 0 1000 500" xmlns="http://www.w3.org/2000/svg">
-                        <!-- Simplified world map SVG -->
-                        <path d="M 50 100 L 950 100 L 950 400 L 50 400 Z" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
-                        <text x="500" y="250" text-anchor="middle" fill="rgba(255,255,255,0.03)" font-size="120" font-weight="bold">WORLD MAP</text>
-                    </svg>
-                </div>
+                <div id="map" class="leaflet-map"></div>
             </div>
         </div>
     </div>
 
     <script src="wailsjs/runtime/runtime.js"></script>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
     <script src="app.js"></script>
 </body>
 </html>

@@ -4,6 +4,8 @@ let selectedNode = null;
 let connectedNode = null; // Track which node is currently connected
 let nodes = [];
 let sessionUpdateInterval = null;
+let map = null; // Leaflet map instance
+let markers = new Map(); // Store markers by node ID
 
 // Screen management
 function showScreen(screenId) {
@@ -23,6 +25,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     initAuthToggle();
     initPasswordToggles();
     initDashboard();
+    initMap();
 
     // Check for saved session
     if (window.go && window.go.main && window.go.main.App) {
@@ -87,6 +90,120 @@ function initPasswordToggles() {
             }
         });
     });
+}
+
+// Initialize Leaflet map
+function initMap() {
+    console.log('Initializing Leaflet map...');
+
+    // Wait for Leaflet to be loaded
+    if (typeof L === 'undefined') {
+        console.error('Leaflet not loaded yet');
+        setTimeout(initMap, 100);
+        return;
+    }
+
+    try {
+        // Initialize map
+        map = L.map('map', {
+            center: [25, 0],
+            zoom: 2.5,
+            minZoom: 2,
+            maxZoom: 6,
+            worldCopyJump: true,
+            zoomControl: true,
+            attributionControl: false
+        });
+
+        // Add dark theme tile layer (CartoDB Dark Matter)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap © CARTO',
+            subdomains: 'abcd',
+            maxZoom: 19
+        }).addTo(map);
+
+        // Position zoom controls
+        map.zoomControl.setPosition('bottomright');
+
+        console.log('Map initialized successfully');
+    } catch (error) {
+        console.error('Failed to initialize map:', error);
+    }
+}
+
+// Add server markers to map
+function addServerMarkers(serverNodes) {
+    // Clear existing markers
+    markers.forEach(marker => {
+        map.removeLayer(marker);
+    });
+    markers.clear();
+
+    serverNodes.forEach(node => {
+        // Skip nodes without coordinates
+        if (!node.latitude || !node.longitude) {
+            return;
+        }
+
+        const loadPercentage = Math.round(node.load_score);
+        const isConnected = connectedNode && connectedNode.id === node.id;
+
+        // Determine marker class based on load and connection status
+        let markerClass = 'server-marker';
+        if (isConnected) {
+            markerClass += ' connected';
+        } else if (loadPercentage > 80) {
+            markerClass += ' high-load';
+        }
+
+        // Create custom icon
+        const icon = L.divIcon({
+            className: markerClass,
+            iconSize: [16, 14],
+            iconAnchor: [8, 14]
+        });
+
+        // Create marker
+        const marker = L.marker([node.latitude, node.longitude], { icon })
+            .addTo(map);
+
+        // Create popup content
+        const popupContent = `
+            <div class="server-popup">
+                <h3>${node.name}</h3>
+                <p>${node.city}, ${node.country}</p>
+                <div class="load-bar">
+                    <div class="load-fill" style="width: ${loadPercentage}%"></div>
+                </div>
+                <p class="load-text">Server Load: ${loadPercentage}%</p>
+                ${isConnected ? '<p style="color: #22c55e; font-weight: 600; margin-top: 8px;">● Connected</p>' : ''}
+                ${!isConnected ? `<button class="connect-btn" onclick="connectToServer('${node.id}')">Connect to Server</button>` : ''}
+            </div>
+        `;
+
+        marker.bindPopup(popupContent);
+        markers.set(node.id, marker);
+    });
+}
+
+// Connect to server from map popup
+window.connectToServer = async function(nodeId) {
+    selectedNode = nodes.find(n => n.id === nodeId);
+    if (selectedNode) {
+        // Close all popups
+        map.closePopup();
+
+        // If already connected, ask to switch
+        const isCurrentlyConnected = await window.go.main.App.IsConnected();
+        if (isCurrentlyConnected) {
+            if (confirm(`Switch to ${selectedNode.name}?`)) {
+                await disconnectFromVPN();
+                await connectToVPN();
+            }
+        } else {
+            await connectToVPN();
+        }
+    }
 }
 
 // Login screen initialization
@@ -213,13 +330,6 @@ async function checkConnectionStatus() {
         const isConnected = await window.go.main.App.IsConnected();
 
         if (isConnected) {
-            // Update status display on map
-            const statusText = document.getElementById('connection-status-text');
-            const statusCircle = document.getElementById('status-circle');
-
-            statusText.textContent = 'CONNECTED';
-            statusCircle.classList.add('connected');
-
             // Update connection card
             const serverName = document.getElementById('server-name');
             const serverDetails = document.getElementById('server-details');
@@ -258,13 +368,6 @@ async function checkConnectionStatus() {
                 console.error('Failed to get VPN stats:', err);
             }
         } else {
-            // Ensure disconnected UI
-            const statusText = document.getElementById('connection-status-text');
-            const statusCircle = document.getElementById('status-circle');
-
-            statusText.textContent = 'DISCONNECTED';
-            statusCircle.classList.remove('connected');
-
             // Reset connection card
             const serverName = document.getElementById('server-name');
             const serverDetails = document.getElementById('server-details');
@@ -295,6 +398,11 @@ async function loadNodes() {
 
         nodes = await window.go.main.App.GetNodes(country, protocol);
         renderNodes(nodes);
+
+        // Add markers to map if map is initialized
+        if (map) {
+            addServerMarkers(nodes);
+        }
     } catch (error) {
         nodesList.innerHTML = `<div class="error-message">Failed to load nodes: ${error.message}</div>`;
     }
@@ -434,8 +542,6 @@ async function connectToVPN() {
     }
 
     // UI elements
-    const statusText = document.getElementById('connection-status-text');
-    const statusCircle = document.getElementById('status-circle');
     const serverName = document.getElementById('server-name');
     const serverIP = document.getElementById('server-ip');
     const serverLoad = document.getElementById('server-load');
@@ -449,7 +555,6 @@ async function connectToVPN() {
         console.log('Starting connection process...');
 
         // Update UI to show connecting
-        statusText.textContent = 'CONNECTING';
         serverName.textContent = `Connecting to ${selectedNode.name}...`;
 
         // Determine protocol - prefer WireGuard
@@ -467,10 +572,6 @@ async function connectToVPN() {
 
             // Set connected node
             connectedNode = selectedNode;
-
-            // Update status display
-            statusText.textContent = 'CONNECTED';
-            statusCircle.classList.add('connected');
 
             // Update connection card
             serverName.textContent = selectedNode.name;
@@ -490,6 +591,11 @@ async function connectToVPN() {
             // Re-render nodes to show connected indicator
             renderNodes(nodes);
 
+            // Update map markers
+            if (map) {
+                addServerMarkers(nodes);
+            }
+
             // Start session updates for real-time stats
             startSessionUpdates();
         } else {
@@ -501,8 +607,6 @@ async function connectToVPN() {
         alert(`Failed to connect: ${error}\n\nMake sure:\n1. WireGuard is installed (brew install wireguard-tools)\n2. You enter your password when prompted\n3. You have admin privileges`);
 
         // Reset UI
-        statusText.textContent = 'DISCONNECTED';
-        statusCircle.classList.remove('connected');
         serverName.textContent = 'Connection Failed';
         serverDetails.style.display = 'none';
         connectionStats.style.display = 'none';
@@ -513,8 +617,6 @@ async function connectToVPN() {
 // Disconnect from VPN
 async function disconnectFromVPN() {
     const disconnectBtn = document.getElementById('disconnect-btn');
-    const statusText = document.getElementById('connection-status-text');
-    const statusCircle = document.getElementById('status-circle');
     const serverName = document.getElementById('server-name');
     const serverDetails = document.getElementById('server-details');
     const connectionStats = document.getElementById('connection-stats');
@@ -524,7 +626,7 @@ async function disconnectFromVPN() {
         disconnectBtn.disabled = true;
 
         // Update UI
-        statusText.textContent = 'DISCONNECTING';
+        serverName.textContent = 'Disconnecting...';
 
         // Disconnect - This will prompt for sudo password via terminal
         await window.go.main.App.DisconnectVPN();
@@ -533,8 +635,6 @@ async function disconnectFromVPN() {
         connectedNode = null;
 
         // Update UI
-        statusText.textContent = 'DISCONNECTED';
-        statusCircle.classList.remove('connected');
         serverName.textContent = 'Not Connected';
         serverDetails.style.display = 'none';
         connectionStats.style.display = 'none';
@@ -543,6 +643,11 @@ async function disconnectFromVPN() {
 
         // Re-render nodes to remove connected indicator
         renderNodes(nodes);
+
+        // Update map markers
+        if (map) {
+            addServerMarkers(nodes);
+        }
 
         // Stop session updates
         stopSessionUpdates();
@@ -566,8 +671,6 @@ function startSessionUpdates() {
 
             if (!isConnected) {
                 // Connection lost, update UI
-                const statusText = document.getElementById('connection-status-text');
-                const statusCircle = document.getElementById('status-circle');
                 const serverName = document.getElementById('server-name');
                 const serverDetails = document.getElementById('server-details');
                 const connectionStats = document.getElementById('connection-stats');
@@ -575,8 +678,6 @@ function startSessionUpdates() {
                 // Clear connected node
                 connectedNode = null;
 
-                statusText.textContent = 'DISCONNECTED';
-                statusCircle.classList.remove('connected');
                 serverName.textContent = 'Connection Lost';
                 serverDetails.style.display = 'none';
                 connectionStats.style.display = 'none';
@@ -585,6 +686,11 @@ function startSessionUpdates() {
 
                 // Re-render nodes to remove connected indicator
                 renderNodes(nodes);
+
+                // Update map markers
+                if (map) {
+                    addServerMarkers(nodes);
+                }
 
                 stopSessionUpdates();
                 return;
