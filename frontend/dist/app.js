@@ -897,6 +897,7 @@ function startSessionUpdates() {
 
             // Get VPN stats
             const stats = await window.go.main.App.GetVPNStats();
+            console.log('VPN Stats:', stats);
             if (stats && stats.connected) {
                 // Update speed stats in connection card
                 const speedDown = document.getElementById('speed-down');

@@ -171,30 +171,26 @@ func (m *WireGuardManager) IsConnected() bool {
 
 // GetStats returns connection statistics
 func (m *WireGuardManager) GetStats() (map[string]interface{}, error) {
-	// Try without sudo first
+	stats := make(map[string]interface{})
+	stats["connected"] = m.IsConnected()
+
+	// Try without sudo first - some systems allow reading wg stats
 	cmd := exec.Command("wg", "show")
 	output, err := cmd.Output()
 
-	// If that fails, try with sudo -n (non-interactive)
 	if err != nil || len(output) == 0 {
-		cmd = exec.Command("sudo", "-n", "wg", "show")
-		output, err = cmd.Output()
-		if err != nil {
-			// If sudo fails, return basic connected status without detailed stats
-			stats := make(map[string]interface{})
-			stats["connected"] = m.IsConnected()
-			stats["bytes_sent"] = int64(0)
-			stats["bytes_received"] = int64(0)
-			return stats, nil
-		}
+		// If regular wg fails, parse stats from system files instead
+		// On macOS, we can read interface stats without sudo
+		// For now, return basic stats without detailed transfer info
+		stats["bytes_sent"] = int64(0)
+		stats["bytes_received"] = int64(0)
+		return stats, nil
 	}
-
-	stats := make(map[string]interface{})
-	stats["connected"] = len(output) > 0
 
 	if len(output) > 0 {
 		// Parse the output to extract transfer statistics
 		outputStr := string(output)
+		fmt.Printf("WireGuard stats output:\n%s\n", outputStr)
 		lines := strings.Split(outputStr, "\n")
 
 		var bytesSent int64 = 0
@@ -206,6 +202,7 @@ func (m *WireGuardManager) GetStats() (map[string]interface{}, error) {
 
 			// Look for transfer line: "transfer: 1.23 KiB received, 2.34 KiB sent"
 			if strings.HasPrefix(line, "transfer:") {
+				fmt.Printf("Found transfer line: %s\n", line)
 				parts := strings.Split(line, "transfer:")
 				if len(parts) > 1 {
 					transferData := strings.TrimSpace(parts[1])
@@ -216,8 +213,10 @@ func (m *WireGuardManager) GetStats() (map[string]interface{}, error) {
 						part = strings.TrimSpace(part)
 						if strings.Contains(part, "received") {
 							bytesReceived = parseTransferSize(part)
+							fmt.Printf("Parsed bytes received: %d\n", bytesReceived)
 						} else if strings.Contains(part, "sent") {
 							bytesSent = parseTransferSize(part)
+							fmt.Printf("Parsed bytes sent: %d\n", bytesSent)
 						}
 					}
 				}
@@ -235,6 +234,7 @@ func (m *WireGuardManager) GetStats() (map[string]interface{}, error) {
 		stats["bytes_sent"] = bytesSent
 		stats["bytes_received"] = bytesReceived
 		stats["latest_handshake"] = latestHandshake
+		fmt.Printf("Final stats - sent: %d, received: %d\n", bytesSent, bytesReceived)
 	}
 
 	return stats, nil
