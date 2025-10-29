@@ -38,15 +38,22 @@ window.addEventListener('DOMContentLoaded', async () => {
 // Check for saved session and auto-login
 async function checkSavedSession() {
     try {
+        console.log('Checking saved session...');
         const sessionData = await window.go.main.App.CheckSavedSession();
+        console.log('Session data:', sessionData);
 
         if (sessionData && sessionData.has_session) {
+            console.log('Found saved session, auto-login');
             // Auto-login with saved session
             currentUser = sessionData.user;
             document.getElementById('username').textContent = sessionData.user.username;
             showScreen('dashboard-screen');
+            console.log('Checking connection status...');
             await checkConnectionStatus();
+            console.log('Loading nodes...');
             await loadNodes();
+        } else {
+            console.log('No saved session found');
         }
     } catch (error) {
         console.error('Failed to check saved session:', error);
@@ -133,6 +140,13 @@ function initMap() {
 
 // Add server markers to map
 function addServerMarkers(serverNodes) {
+    console.log('addServerMarkers called with', serverNodes.length, 'nodes');
+
+    if (!map) {
+        console.error('Map not initialized yet');
+        return;
+    }
+
     // Clear existing markers
     markers.forEach(marker => {
         map.removeLayer(marker);
@@ -140,8 +154,11 @@ function addServerMarkers(serverNodes) {
     markers.clear();
 
     serverNodes.forEach(node => {
+        console.log('Processing node:', node.name, 'lat:', node.latitude, 'lng:', node.longitude);
+
         // Skip nodes without coordinates
         if (!node.latitude || !node.longitude) {
+            console.warn('Skipping node without coordinates:', node.name);
             return;
         }
 
@@ -221,20 +238,28 @@ function initLoginScreen() {
         const apiUrl = apiUrlInput.value;
 
         try {
+            console.log('Logging in with email:', email, 'API:', apiUrl);
             // Set API URL
             await window.go.main.App.SetAPIURL(apiUrl);
 
             // Attempt login
             const response = await window.go.main.App.Login(email, password);
+            console.log('Login response:', response);
 
             if (response.success) {
+                console.log('Login successful');
                 currentUser = response.user;
                 document.getElementById('username').textContent = response.user.username;
                 showScreen('dashboard-screen');
+                console.log('Dashboard shown, checking connection...');
                 await checkConnectionStatus();
+                console.log('Loading nodes after login...');
                 await loadNodes();
+            } else {
+                console.error('Login failed:', response);
             }
         } catch (error) {
+            console.error('Login error:', error);
             loginError.textContent = error.message || 'Login failed. Please check your credentials.';
         }
     });
@@ -327,7 +352,9 @@ function initDashboard() {
 // Check connection status when dashboard loads
 async function checkConnectionStatus() {
     try {
+        console.log('checkConnectionStatus: Calling IsConnected...');
         const isConnected = await window.go.main.App.IsConnected();
+        console.log('checkConnectionStatus: IsConnected returned:', isConnected);
 
         if (isConnected) {
             // Update connection card
@@ -388,6 +415,7 @@ async function checkConnectionStatus() {
 
 // Load nodes from API
 async function loadNodes() {
+    console.log('loadNodes called');
     const nodesList = document.getElementById('nodes-list');
     nodesList.innerHTML = '<div class="loading">Loading nodes...</div>';
 
@@ -396,15 +424,28 @@ async function loadNodes() {
         const country = '';
         const protocol = ''; // Empty string to get all protocols
 
+        console.log('Calling GetNodes API...');
         nodes = await window.go.main.App.GetNodes(country, protocol);
+        console.log('Received nodes:', nodes);
+        console.log('Number of nodes:', nodes ? nodes.length : 0);
+
+        if (!nodes || nodes.length === 0) {
+            nodesList.innerHTML = '<div class="loading">No nodes available</div>';
+            return;
+        }
+
         renderNodes(nodes);
 
         // Add markers to map if map is initialized
         if (map) {
+            console.log('Adding markers to map');
             addServerMarkers(nodes);
+        } else {
+            console.warn('Map not initialized, skipping markers');
         }
     } catch (error) {
-        nodesList.innerHTML = `<div class="error-message">Failed to load nodes: ${error.message}</div>`;
+        console.error('Error loading nodes:', error);
+        nodesList.innerHTML = `<div class="error-message">Failed to load nodes: ${error.message || error}</div>`;
     }
 }
 
@@ -479,13 +520,16 @@ function getCountryFlagUrl(countryCode, countryName) {
 
 // Render nodes list
 function renderNodes(nodesToRender) {
+    console.log('renderNodes called with', nodesToRender ? nodesToRender.length : 0, 'nodes');
     const nodesList = document.getElementById('nodes-list');
 
-    if (nodesToRender.length === 0) {
+    if (!nodesToRender || nodesToRender.length === 0) {
+        console.warn('No nodes to render');
         nodesList.innerHTML = '<div class="loading">No nodes available</div>';
         return;
     }
 
+    console.log('Rendering nodes:', nodesToRender);
     nodesList.innerHTML = nodesToRender.map(node => {
         const isSelected = selectedNode && selectedNode.id === node.id;
         const isConnected = connectedNode && connectedNode.id === node.id;

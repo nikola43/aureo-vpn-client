@@ -902,82 +902,90 @@ a {
 
 /* Leaflet Popup Customization */
 .leaflet-popup-content-wrapper {
-    background: rgba(36, 40, 59, 0.98);
-    color: #ffffff;
-    border-radius: 8px;
-    padding: 0;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: #24283b !important;
+    color: #ffffff !important;
+    border-radius: 12px !important;
+    padding: 0 !important;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6) !important;
+    border: 1px solid rgba(139, 125, 216, 0.3) !important;
 }
 
 .leaflet-popup-content {
-    margin: 0;
-    min-width: 200px;
+    margin: 0 !important;
+    min-width: 220px !important;
 }
 
 .leaflet-popup-tip {
-    background: rgba(36, 40, 59, 0.98);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-top: none;
-    border-right: none;
+    background: #24283b !important;
+    border: 1px solid rgba(139, 125, 216, 0.3) !important;
+    border-top: none !important;
+    border-right: none !important;
 }
 
 .server-popup {
-    padding: 16px;
+    padding: 20px;
 }
 
 .server-popup h3 {
-    margin: 0 0 4px 0;
-    font-size: 16px;
-    font-weight: 600;
+    margin: 0 0 6px 0;
+    font-size: 18px;
+    font-weight: 700;
     color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .server-popup p {
-    margin: 0 0 12px 0;
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.7);
+    margin: 0 0 14px 0;
+    font-size: 14px;
+    color: #e0e0e0;
+    font-weight: 500;
 }
 
 .server-popup .load-bar {
     width: 100%;
-    height: 6px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
     overflow: hidden;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .server-popup .load-fill {
     height: 100%;
     background: linear-gradient(90deg, #22c55e 0%, #eab308 50%, #ef4444 100%);
-    border-radius: 3px;
+    border-radius: 4px;
     transition: width 0.3s ease;
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.3);
 }
 
 .server-popup .load-text {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.6);
+    font-size: 13px;
+    color: #ffffff;
+    font-weight: 600;
     margin: 0;
 }
 
 .server-popup .connect-btn {
     width: 100%;
-    padding: 10px;
-    background: #8b7dd8;
-    color: white;
+    padding: 12px;
+    background: linear-gradient(135deg, #8b7dd8 0%, #7a6bc7 100%);
+    color: #ffffff;
     border: none;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 600;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 700;
     cursor: pointer;
     transition: all 0.2s;
-    margin-top: 12px;
+    margin-top: 16px;
+    box-shadow: 0 4px 12px rgba(139, 125, 216, 0.4);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .server-popup .connect-btn:hover {
-    background: #7a6bc7;
-    transform: translateY(-1px);
+    background: linear-gradient(135deg, #7a6bc7 0%, #6b5ab6 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(139, 125, 216, 0.6);
 }
 
 .server-popup .features {
@@ -997,10 +1005,13 @@ a {
 
 /* Close button customization */
 .leaflet-popup-close-button {
-    color: rgba(255, 255, 255, 0.6) !important;
-    font-size: 20px !important;
+    color: rgba(255, 255, 255, 0.7) !important;
+    font-size: 24px !important;
+    padding: 4px 8px !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .leaflet-popup-close-button:hover {
     color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.1) !important;
 }

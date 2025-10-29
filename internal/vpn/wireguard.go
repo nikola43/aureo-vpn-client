@@ -117,7 +117,14 @@ func (m *WireGuardManager) Disconnect() error {
 
 // IsConnected checks if the VPN is currently connected
 func (m *WireGuardManager) IsConnected() bool {
-	cmd := exec.Command("sudo", "wg", "show")
+	// Check if config file exists first - if not, we're definitely not connected
+	configPath := filepath.Join(m.configDir, "wg0.conf")
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		return false
+	}
+
+	// Use non-interactive wg command without sudo (read-only check)
+	cmd := exec.Command("wg", "show")
 	output, err := cmd.Output()
 	if err != nil {
 		return false
