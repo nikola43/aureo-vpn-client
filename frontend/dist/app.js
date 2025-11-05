@@ -199,17 +199,21 @@ function addServerMarkers(serverNodes) {
         const marker = L.marker([node.latitude, node.longitude], { icon })
             .addTo(map);
 
-        // Create popup content
+        // Create popup content with flag background
+        const flagUrl = node.country_code ? `https://flagcdn.com/w640/${node.country_code.toLowerCase()}.png` : '';
         const popupContent = `
             <div class="server-popup">
-                <h3>${node.name}</h3>
-                <p>${node.city}, ${node.country}</p>
-                <div class="load-bar">
-                    <div class="load-fill" style="width: ${loadPercentage}%"></div>
+                ${flagUrl ? `<div class="popup-flag-background" style="background-image: url('${flagUrl}');"></div>` : ''}
+                <div class="popup-content-wrapper">
+                    <h3>${node.name}</h3>
+                    <p>${node.city}, ${node.country}</p>
+                    <div class="load-bar">
+                        <div class="load-fill" style="width: ${loadPercentage}%"></div>
+                    </div>
+                    <p class="load-text">Server Load: ${loadPercentage}%</p>
+                    ${isConnected ? '<p style="color: #22c55e; font-weight: 600; margin-top: 8px;">● Connected</p>' : ''}
+                    ${isConnected ? `<button class="disconnect-btn" onclick="disconnectFromServer()">Disconnect</button>` : `<button class="connect-btn" onclick="connectToServer('${node.id}')">Connect to Server</button>`}
                 </div>
-                <p class="load-text">Server Load: ${loadPercentage}%</p>
-                ${isConnected ? '<p style="color: #22c55e; font-weight: 600; margin-top: 8px;">● Connected</p>' : ''}
-                ${!isConnected ? `<button class="connect-btn" onclick="connectToServer('${node.id}')">Connect to Server</button>` : ''}
             </div>
         `;
 
@@ -236,6 +240,15 @@ window.connectToServer = async function(nodeId) {
             await connectToVPN();
         }
     }
+}
+
+// Disconnect from server from map popup
+window.disconnectFromServer = async function() {
+    // Close all popups
+    map.closePopup();
+
+    // Disconnect from VPN
+    await disconnectFromVPN();
 }
 
 // Login screen initialization
@@ -477,6 +490,7 @@ async function checkConnectionStatus() {
                                 const flagUrl = `https://flagcdn.com/w640/${connectedNode.country_code.toLowerCase()}.png`;
                                 document.getElementById('flag-background').style.backgroundImage = `url('${flagUrl}')`;
                                 document.getElementById('flag-background').style.display = 'block';
+                                document.getElementById('connection-card').classList.add('has-flag');
                             }
 
                             // Update load display
@@ -526,6 +540,7 @@ async function checkConnectionStatus() {
                     notConnectedView.style.display = 'block';
                     connectedView.style.display = 'none';
                     document.getElementById('flag-background').style.display = 'none';
+                    document.getElementById('connection-card').classList.remove('has-flag');
                 }
             } catch (err) {
                 console.error('Failed to get VPN stats:', err);
@@ -540,6 +555,7 @@ async function checkConnectionStatus() {
             notConnectedView.style.display = 'block';
             connectedView.style.display = 'none';
             document.getElementById('flag-background').style.display = 'none';
+            document.getElementById('connection-card').classList.remove('has-flag');
         }
     } catch (error) {
         console.error('Failed to check connection status:', error);
