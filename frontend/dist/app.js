@@ -339,6 +339,15 @@ function initDashboard() {
         quickConnectBtn.addEventListener('click', async () => {
             console.log('Quick Connect clicked');
             try {
+                // Check if already connected first
+                const isCurrentlyConnected = await window.go.main.App.IsConnected();
+                if (isCurrentlyConnected) {
+                    console.log('Already connected, updating UI...');
+                    // Just refresh the UI state instead of trying to connect again
+                    await checkConnectionStatus();
+                    return;
+                }
+
                 if (!nodes || nodes.length === 0) {
                     console.log('No nodes loaded, loading nodes...');
                     await loadNodes();
@@ -420,38 +429,113 @@ async function checkConnectionStatus() {
         const connectedView = document.getElementById('connected-view');
 
         if (isConnected) {
-            // Show connected view
-            notConnectedView.style.display = 'none';
-            connectedView.style.display = 'block';
+            console.log('Connection detected! Updating UI to connected state...');
 
-            // Get VPN stats
+            // Get VPN stats to get node information
             try {
                 const stats = await window.go.main.App.GetVPNStats();
+                console.log('Got VPN stats:', stats);
+
                 if (stats && stats.connected) {
+                    // Show connected view FIRST
+                    notConnectedView.style.display = 'none';
+                    connectedView.style.display = 'block';
+
+                    // Update server title
                     if (stats.node_name) {
                         document.getElementById('server-title').textContent = stats.node_name;
+                    } else if (stats.node_id) {
+                        document.getElementById('server-title').textContent = 'Connected';
+                    }
 
-                        // Try to find and set the connected node
-                        if (nodes.length > 0) {
-                            connectedNode = nodes.find(n => n.name === stats.node_name);
-                            if (connectedNode) {
-                                // Set flag background
-                                const flagUrl = `https://flagcdn.com/w640/${connectedNode.country_code.toLowerCase()}.png`;
-                                document.getElementById('flag-background').style.backgroundImage = `url('${flagUrl}')`;
-                                document.getElementById('flag-background').style.display = 'block';
-
-                                renderNodes(nodes);
-                            }
+                    // Fetch and update the public IP
+                    const serverIp = document.getElementById('server-ip');
+                    if (serverIp) {
+                        serverIp.textContent = 'Fetching...';
+                        try {
+                            const ipResponse = await fetch('https://api.ipify.org?format=json');
+                            const ipData = await ipResponse.json();
+                            serverIp.textContent = ipData.ip;
+                            console.log('Updated IP to:', ipData.ip);
+                        } catch (ipError) {
+                            console.error('Failed to fetch public IP:', ipError);
+                            serverIp.textContent = '-';
                         }
                     }
 
+                    // Try to find and set the connected node
+                    if (nodes.length > 0 && (stats.node_name || stats.node_id)) {
+                        connectedNode = nodes.find(n =>
+                            n.name === stats.node_name || n.id === stats.node_id
+                        );
+
+                        if (connectedNode) {
+                            console.log('Found connected node:', connectedNode);
+
+                            // Set flag background
+                            if (connectedNode.country_code) {
+                                const flagUrl = `https://flagcdn.com/w640/${connectedNode.country_code.toLowerCase()}.png`;
+                                document.getElementById('flag-background').style.backgroundImage = `url('${flagUrl}')`;
+                                document.getElementById('flag-background').style.display = 'block';
+                            }
+
+                            // Update load display
+                            const serverLoadDisplay = document.getElementById('server-load-display');
+                            if (serverLoadDisplay) {
+                                serverLoadDisplay.textContent = Math.round(connectedNode.load_score) + '%';
+                            }
+
+                            // Update load circle
+                            const loadProgress = document.getElementById('load-ring-progress');
+                            if (loadProgress) {
+                                const load = Math.round(connectedNode.load_score);
+                                loadProgress.setAttribute('stroke-dasharray', `${load}, 100`);
+                                if (load > 80) {
+                                    loadProgress.style.stroke = '#ef4444';
+                                } else if (load > 50) {
+                                    loadProgress.style.stroke = '#eab308';
+                                } else {
+                                    loadProgress.style.stroke = '#22c55e';
+                                }
+                            }
+
+                            // Re-render nodes to show connected indicator
+                            renderNodes(nodes);
+
+                            // Update map markers
+                            if (map) {
+                                addServerMarkers(nodes);
+                            }
+                        } else {
+                            console.warn('Could not find connected node in nodes list');
+                        }
+                    }
+
+                    // Initialize stats tracking
+                    connectionStartTime = new Date();
+                    previousBytesReceived = 0;
+                    previousBytesSent = 0;
+                    previousStatsTime = Date.now();
+
                     // Start session updates for real-time stats
                     startSessionUpdates();
+
+                    console.log('UI successfully updated to connected state');
+                } else {
+                    console.warn('Stats indicate not connected, showing disconnected view');
+                    notConnectedView.style.display = 'block';
+                    connectedView.style.display = 'none';
+                    document.getElementById('flag-background').style.display = 'none';
                 }
             } catch (err) {
                 console.error('Failed to get VPN stats:', err);
+                // Even if stats fail, show connected view since IsConnected returned true
+                notConnectedView.style.display = 'none';
+                connectedView.style.display = 'block';
+                startSessionUpdates();
             }
         } else {
+            console.log('Not connected, showing disconnected view');
             // Show not connected view
             notConnectedView.style.display = 'block';
             connectedView.style.display = 'none';

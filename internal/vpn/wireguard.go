@@ -174,68 +174,65 @@ func (m *WireGuardManager) GetStats() (map[string]interface{}, error) {
 	stats := make(map[string]interface{})
 	stats["connected"] = m.IsConnected()
 
-	// Try without sudo first - some systems allow reading wg stats
-	cmd := exec.Command("wg", "show")
+	// Use sudo wg show directly (assumes wg is in sudoers/visudo for passwordless access)
+	cmd := exec.Command("sudo", "wg", "show")
 	output, err := cmd.Output()
 
 	if err != nil || len(output) == 0 {
-		// If regular wg fails, parse stats from system files instead
-		// On macOS, we can read interface stats without sudo
-		// For now, return basic stats without detailed transfer info
+		// If command fails, return zeros
+		fmt.Printf("Failed to get WireGuard stats: %v\n", err)
 		stats["bytes_sent"] = int64(0)
 		stats["bytes_received"] = int64(0)
 		return stats, nil
 	}
 
-	if len(output) > 0 {
-		// Parse the output to extract transfer statistics
-		outputStr := string(output)
-		fmt.Printf("WireGuard stats output:\n%s\n", outputStr)
-		lines := strings.Split(outputStr, "\n")
+	// Parse the output to extract transfer statistics
+	outputStr := string(output)
+	fmt.Printf("WireGuard stats output:\n%s\n", outputStr)
+	lines := strings.Split(outputStr, "\n")
 
-		var bytesSent int64 = 0
-		var bytesReceived int64 = 0
-		var latestHandshake string
+	var bytesSent int64 = 0
+	var bytesReceived int64 = 0
+	var latestHandshake string
 
-		for _, line := range lines {
-			line = strings.TrimSpace(line)
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
 
-			// Look for transfer line: "transfer: 1.23 KiB received, 2.34 KiB sent"
-			if strings.HasPrefix(line, "transfer:") {
-				fmt.Printf("Found transfer line: %s\n", line)
-				parts := strings.Split(line, "transfer:")
-				if len(parts) > 1 {
-					transferData := strings.TrimSpace(parts[1])
-					// Parse "X received, Y sent"
-					transferParts := strings.Split(transferData, ",")
+		// Look for transfer line: "transfer: 1.23 KiB received, 2.34 KiB sent"
+		if strings.HasPrefix(line, "transfer:") {
+			fmt.Printf("Found transfer line: %s\n", line)
+			parts := strings.Split(line, "transfer:")
+			if len(parts) > 1 {
+				transferData := strings.TrimSpace(parts[1])
+				// Parse "X received, Y sent"
+				transferParts := strings.Split(transferData, ",")
 
-					for _, part := range transferParts {
-						part = strings.TrimSpace(part)
-						if strings.Contains(part, "received") {
-							bytesReceived = parseTransferSize(part)
-							fmt.Printf("Parsed bytes received: %d\n", bytesReceived)
-						} else if strings.Contains(part, "sent") {
-							bytesSent = parseTransferSize(part)
-							fmt.Printf("Parsed bytes sent: %d\n", bytesSent)
-						}
+				for _, part := range transferParts {
+					part = strings.TrimSpace(part)
+					if strings.Contains(part, "received") {
+						bytesReceived = parseTransferSize(part)
+						fmt.Printf("Parsed bytes received: %d\n", bytesReceived)
+					} else if strings.Contains(part, "sent") {
+						bytesSent = parseTransferSize(part)
+						fmt.Printf("Parsed bytes sent: %d\n", bytesSent)
 					}
-				}
-			}
-
-			// Look for latest handshake
-			if strings.HasPrefix(line, "latest handshake:") {
-				parts := strings.Split(line, "latest handshake:")
-				if len(parts) > 1 {
-					latestHandshake = strings.TrimSpace(parts[1])
 				}
 			}
 		}
 
-		stats["bytes_sent"] = bytesSent
-		stats["bytes_received"] = bytesReceived
-		stats["latest_handshake"] = latestHandshake
-		fmt.Printf("Final stats - sent: %d, received: %d\n", bytesSent, bytesReceived)
+		// Look for latest handshake
+		if strings.HasPrefix(line, "latest handshake:") {
+			parts := strings.Split(line, "latest handshake:")
+			if len(parts) > 1 {
+				latestHandshake = strings.TrimSpace(parts[1])
+			}
+		}
 	}
+
+	stats["bytes_sent"] = bytesSent
+	stats["bytes_received"] = bytesReceived
+	stats["latest_handshake"] = latestHandshake
+	fmt.Printf("Final stats - sent: %d, received: %d\n", bytesSent, bytesReceived)
 
 	return stats, nil
 }
