@@ -10,10 +10,20 @@ export namespace models {
 	    status: string;
 	    // Go type: time
 	    connected_at: any;
+	    // Go type: time
+	    disconnected_at?: any;
 	    bytes_sent: number;
 	    bytes_received: number;
 	    data_used_gb: number;
 	    latency: number;
+	    packet_loss: number;
+	    split_tunnel_enabled: boolean;
+	    kill_switch_enabled: boolean;
+	    dns_leak_protection: boolean;
+	    is_multi_hop: boolean;
+	    client_version: string;
+	    device_type: string;
+	    os_type: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Session(source);
@@ -29,10 +39,19 @@ export namespace models {
 	        this.tunnel_ip = source["tunnel_ip"];
 	        this.status = source["status"];
 	        this.connected_at = this.convertValues(source["connected_at"], null);
+	        this.disconnected_at = this.convertValues(source["disconnected_at"], null);
 	        this.bytes_sent = source["bytes_sent"];
 	        this.bytes_received = source["bytes_received"];
 	        this.data_used_gb = source["data_used_gb"];
 	        this.latency = source["latency"];
+	        this.packet_loss = source["packet_loss"];
+	        this.split_tunnel_enabled = source["split_tunnel_enabled"];
+	        this.kill_switch_enabled = source["kill_switch_enabled"];
+	        this.dns_leak_protection = source["dns_leak_protection"];
+	        this.is_multi_hop = source["is_multi_hop"];
+	        this.client_version = source["client_version"];
+	        this.device_type = source["device_type"];
+	        this.os_type = source["os_type"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -130,6 +149,8 @@ export namespace models {
 	    supports_openvpn: boolean;
 	    wireguard_port: number;
 	    openvpn_port: number;
+	    is_operator_owned: boolean;
+	    uptime_percentage: number;
 	    // Go type: time
 	    last_heartbeat: any;
 	
@@ -158,6 +179,8 @@ export namespace models {
 	        this.supports_openvpn = source["supports_openvpn"];
 	        this.wireguard_port = source["wireguard_port"];
 	        this.openvpn_port = source["openvpn_port"];
+	        this.is_operator_owned = source["is_operator_owned"];
+	        this.uptime_percentage = source["uptime_percentage"];
 	        this.last_heartbeat = this.convertValues(source["last_heartbeat"], null);
 	    }
 	

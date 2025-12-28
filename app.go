@@ -26,10 +26,10 @@ type App struct {
 
 // SessionData stores user session information
 type SessionData struct {
-	AccessToken  string       `json:"access_token"`
-	RefreshToken string       `json:"refresh_token"`
-	User         models.User  `json:"user"`
-	APIURL       string       `json:"api_url"`
+	AccessToken  string      `json:"access_token"`
+	RefreshToken string      `json:"refresh_token"`
+	User         models.User `json:"user"`
+	APIURL       string      `json:"api_url"`
 }
 
 // NewApp creates a new App application struct
@@ -61,7 +61,7 @@ func (a *App) startup(ctx context.Context) {
 }
 
 // currentAPIURL stores the current API URL for session saving
-var currentAPIURL string = "http://155.138.238.145:8080"
+var currentAPIURL string = "http://136.244.70.78:8080"
 
 // SetAPIURL sets the base API URL
 func (a *App) SetAPIURL(url string) {
