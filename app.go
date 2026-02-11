@@ -50,7 +50,7 @@ func (a *App) startup(ctx context.Context) {
 	}
 
 	// Initialize with default API URL - can be changed via SetAPIURL
-	a.apiClient = api.NewClient("http://localhost:8080")
+	a.apiClient = api.NewClient("https://api.aureovpn.com")
 
 	// Initialize VPN manager
 	vpnMgr, err := vpn.NewWireGuardManager()
@@ -61,7 +61,7 @@ func (a *App) startup(ctx context.Context) {
 }
 
 // currentAPIURL stores the current API URL for session saving
-var currentAPIURL string = "http://136.244.70.78:8080"
+var currentAPIURL string = "https://api.aureovpn.com"
 
 // SetAPIURL sets the base API URL
 func (a *App) SetAPIURL(url string) {
