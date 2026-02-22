@@ -1,6 +1,4 @@
 # Binaries for programs and plugins
-*.exe
-*.exe~
 *.dll
 *.so
 *.dylib
@@ -14,8 +12,11 @@
 # Go workspace file
 go.work
 
-# Wails build directory
-build/
+# Wails build output
+build/bin/
+
+# NSIS installer output
+build/windows/AureoVPN-Setup.exe
 
 # Frontend dist wailsjs bindings
 frontend/dist/wailsjs/
